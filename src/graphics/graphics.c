@@ -317,9 +317,20 @@ void graphics_switch_to_city_canvas(int width, int height)
         city_canvas.width = width;
         city_canvas.height = height;
     }
-    if (city_canvas.pixels) {
-        memset(city_canvas.pixels, 0, (size_t) width * height * sizeof(color_t));
+    if (!city_canvas.pixels) {
+        // Allocation failed: restore and return without switching
+        canvas.pixels = saved_main.pixels;
+        canvas.width = saved_main.width;
+        canvas.height = saved_main.height;
+        clip_rectangle.x_start = saved_main.clip.x_start;
+        clip_rectangle.x_end = saved_main.clip.x_end;
+        clip_rectangle.y_start = saved_main.clip.y_start;
+        clip_rectangle.y_end = saved_main.clip.y_end;
+        translation.x = saved_main.translation.x;
+        translation.y = saved_main.translation.y;
+        return;
     }
+    memset(city_canvas.pixels, 0, (size_t) width * height * sizeof(color_t));
 
     // Switch active canvas to city canvas with clean state
     canvas.pixels = city_canvas.pixels;

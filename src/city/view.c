@@ -291,6 +291,9 @@ void city_view_get_selected_tile_pixels(int *x_pixels, int *y_pixels)
 
 int city_view_pixels_to_view_tile(int x_pixels, int y_pixels, view_tile *tile)
 {
+    if (data.zoom_percentage <= 0) {
+        return 0;
+    }
     if (x_pixels < data.viewport.x ||
             x_pixels >= data.viewport.x + data.viewport.width_pixels ||
             y_pixels < data.viewport.y ||

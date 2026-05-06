@@ -140,7 +140,7 @@ int touch_get_pinch_zoom(int *delta)
     }
     int dx = first->current_point.x - last->current_point.x;
     int dy = first->current_point.y - last->current_point.y;
-    // Use Manhattan distance for simplicity (no floating-point needed)
+    // Use Manhattan distance for performance (avoids sqrt calculation)
     int current_dist = abs(dx) + abs(dy);
     if (data.pinch_prev_distance <= 0) {
         data.pinch_prev_distance = current_dist;

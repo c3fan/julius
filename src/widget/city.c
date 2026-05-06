@@ -83,8 +83,8 @@ void widget_city_draw_for_figure(int figure_id, pixel_coordinate *coord)
 
     // Convert coord from city canvas to main canvas (screen) coordinates
     if (coord && canvas_w > 0 && canvas_h > 0) {
-        coord->x = vx + coord->x * vw / canvas_w;
-        coord->y = vy + coord->y * vh / canvas_h;
+        coord->x = vx + (coord->x * vw + canvas_w / 2) / canvas_w;
+        coord->y = vy + (coord->y * vh + canvas_h / 2) / canvas_h;
     }
 }
 
@@ -468,7 +468,8 @@ static void handle_touch(void)
                 int vx, vy, vw, vh;
                 city_view_get_viewport(&vx, &vy, &vw, &vh);
                 if (mid_x >= vx && mid_x < vx + vw && mid_y >= vy && mid_y < vy + vh) {
-                    // Sensitivity: ~50 px finger-distance change = one zoom step
+                    // Use Manhattan distance (sum of absolute dx+dy) for performance;
+                    // ~50 units change ≈ one zoom step
                     int zoom_change = zoom_delta * CITY_VIEW_ZOOM_STEP / 50;
                     if (zoom_change != 0) {
                         city_view_zoom_to(city_view_get_zoom() + zoom_change, mid_x, mid_y);
