@@ -313,7 +313,7 @@ void graphics_switch_to_city_canvas(int width, int height)
     // Allocate or resize city canvas as needed
     if (city_canvas.width != width || city_canvas.height != height || !city_canvas.pixels) {
         free(city_canvas.pixels);
-        city_canvas.pixels = (color_t *) malloc((size_t) width * height * sizeof(color_t));
+        city_canvas.pixels = (color_t *) malloc((size_t) width * (size_t) height * sizeof(color_t));
         city_canvas.width = width;
         city_canvas.height = height;
     }
@@ -330,7 +330,7 @@ void graphics_switch_to_city_canvas(int width, int height)
         translation.y = saved_main.translation.y;
         return;
     }
-    memset(city_canvas.pixels, 0, (size_t) width * height * sizeof(color_t));
+    memset(city_canvas.pixels, 0, (size_t) width * (size_t) height * sizeof(color_t));
 
     // Switch active canvas to city canvas with clean state
     canvas.pixels = city_canvas.pixels;
@@ -361,6 +361,17 @@ void graphics_blit_city_canvas_to_main(int dst_x, int dst_y, int dst_w, int dst_
 {
     if (!city_canvas.pixels || city_canvas.width <= 0 || city_canvas.height <= 0
             || dst_w <= 0 || dst_h <= 0) {
+        return;
+    }
+    if (!canvas.pixels || canvas.width <= 0 || canvas.height <= 0) {
+        return;
+    }
+    // Clamp destination rect to main canvas bounds
+    if (dst_x < 0) { dst_x = 0; }
+    if (dst_y < 0) { dst_y = 0; }
+    if (dst_x + dst_w > canvas.width) { dst_w = canvas.width - dst_x; }
+    if (dst_y + dst_h > canvas.height) { dst_h = canvas.height - dst_y; }
+    if (dst_w <= 0 || dst_h <= 0) {
         return;
     }
     int sw = city_canvas.width;

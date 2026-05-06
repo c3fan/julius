@@ -409,9 +409,6 @@ static void set_viewport(int x_offset, int y_offset, int width, int height)
         int z = config_get(CONFIG_UI_CITY_ZOOM);
         data.zoom_percentage = (z >= CITY_VIEW_ZOOM_MIN && z <= CITY_VIEW_ZOOM_MAX)
             ? (z / CITY_VIEW_ZOOM_STEP * CITY_VIEW_ZOOM_STEP) : 100;
-        if (data.zoom_percentage < CITY_VIEW_ZOOM_MIN) {
-            data.zoom_percentage = CITY_VIEW_ZOOM_MIN;
-        }
     }
     data.viewport.x = x_offset;
     data.viewport.y = y_offset;
