@@ -1,5 +1,6 @@
 #include "view.h"
 
+#include "core/config.h"
 #include "core/direction.h"
 #include "graphics/menu.h"
 #include "map/grid.h"
@@ -30,11 +31,15 @@ static struct {
         int height_pixels;
         int width_tiles;
         int height_tiles;
+        int city_canvas_width;
+        int city_canvas_height;
     } viewport;
     struct {
         int x_pixels;
         int y_pixels;
     } selected_tile;
+    int zoom_percentage;
+    int city_canvas_mode;
 } data;
 
 static int view_to_grid_offset_lookup[VIEW_X_MAX][VIEW_Y_MAX];
@@ -293,16 +298,17 @@ int city_view_pixels_to_view_tile(int x_pixels, int y_pixels, view_tile *tile)
         return 0;
     }
 
-    x_pixels += data.camera.pixel.x;
-    y_pixels += data.camera.pixel.y;
-    int odd = ((x_pixels - data.viewport.x) / HALF_TILE_WIDTH_PIXELS +
-        (y_pixels - data.viewport.y) / HALF_TILE_HEIGHT_PIXELS) & 1;
-    int x_is_odd = ((x_pixels - data.viewport.x) / HALF_TILE_WIDTH_PIXELS) & 1;
-    int y_is_odd = ((y_pixels - data.viewport.y) / HALF_TILE_HEIGHT_PIXELS) & 1;
-    int x_mod = ((x_pixels - data.viewport.x) % HALF_TILE_WIDTH_PIXELS) / 2;
-    int y_mod = (y_pixels - data.viewport.y) % HALF_TILE_HEIGHT_PIXELS;
-    int x_view_offset = (x_pixels - data.viewport.x) / TILE_WIDTH_PIXELS;
-    int y_view_offset = (y_pixels - data.viewport.y) / HALF_TILE_HEIGHT_PIXELS;
+    // Convert screen pixel to city-canvas-relative coordinates using zoom
+    int cx = (x_pixels - data.viewport.x) * 100 / data.zoom_percentage + data.camera.pixel.x;
+    int cy = (y_pixels - data.viewport.y) * 100 / data.zoom_percentage + data.camera.pixel.y;
+
+    int odd = (cx / HALF_TILE_WIDTH_PIXELS + cy / HALF_TILE_HEIGHT_PIXELS) & 1;
+    int x_is_odd = (cx / HALF_TILE_WIDTH_PIXELS) & 1;
+    int y_is_odd = (cy / HALF_TILE_HEIGHT_PIXELS) & 1;
+    int x_mod = (cx % HALF_TILE_WIDTH_PIXELS) / 2;
+    int y_mod = cy % HALF_TILE_HEIGHT_PIXELS;
+    int x_view_offset = cx / TILE_WIDTH_PIXELS;
+    int y_view_offset = cy / HALF_TILE_HEIGHT_PIXELS;
     if (odd) {
         if (x_mod + y_mod >= HALF_TILE_HEIGHT_PIXELS - 1) {
             y_view_offset++;
@@ -326,12 +332,13 @@ void city_view_set_selected_view_tile(const view_tile *tile)
 {
     int x_view_offset = tile->x - data.camera.tile.x;
     int y_view_offset = tile->y - data.camera.tile.y;
-    data.selected_tile.x_pixels = data.viewport.x + TILE_WIDTH_PIXELS * x_view_offset - data.camera.pixel.x;
+    int canvas_x = TILE_WIDTH_PIXELS * x_view_offset - data.camera.pixel.x;
     if (y_view_offset & 1) {
-        data.selected_tile.x_pixels -= HALF_TILE_WIDTH_PIXELS;
+        canvas_x -= HALF_TILE_WIDTH_PIXELS;
     }
-    data.selected_tile.y_pixels = data.viewport.y + HALF_TILE_HEIGHT_PIXELS * y_view_offset
-        - HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
+    int canvas_y = HALF_TILE_HEIGHT_PIXELS * y_view_offset - HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
+    data.selected_tile.x_pixels = data.viewport.x + canvas_x * data.zoom_percentage / 100;
+    data.selected_tile.y_pixels = data.viewport.y + canvas_y * data.zoom_percentage / 100;
 }
 
 int city_view_tile_to_grid_offset(const view_tile *tile)
@@ -395,12 +402,22 @@ void city_view_rotate_right(void)
 
 static void set_viewport(int x_offset, int y_offset, int width, int height)
 {
+    if (data.zoom_percentage == 0) {
+        int z = config_get(CONFIG_UI_CITY_ZOOM);
+        data.zoom_percentage = (z >= CITY_VIEW_ZOOM_MIN && z <= CITY_VIEW_ZOOM_MAX)
+            ? (z / CITY_VIEW_ZOOM_STEP * CITY_VIEW_ZOOM_STEP) : 100;
+        if (data.zoom_percentage < CITY_VIEW_ZOOM_MIN) {
+            data.zoom_percentage = CITY_VIEW_ZOOM_MIN;
+        }
+    }
     data.viewport.x = x_offset;
     data.viewport.y = y_offset;
     data.viewport.width_pixels = width - 2;
     data.viewport.height_pixels = height;
-    data.viewport.width_tiles = width / TILE_WIDTH_PIXELS;
-    data.viewport.height_tiles = height / HALF_TILE_HEIGHT_PIXELS;
+    data.viewport.city_canvas_width = (width - 2) * 100 / data.zoom_percentage;
+    data.viewport.city_canvas_height = height * 100 / data.zoom_percentage;
+    data.viewport.width_tiles = data.viewport.city_canvas_width / TILE_WIDTH_PIXELS;
+    data.viewport.height_tiles = data.viewport.city_canvas_height / HALF_TILE_HEIGHT_PIXELS;
 }
 
 static void set_viewport_with_sidebar(void)
@@ -497,9 +514,10 @@ void city_view_load_scenario_state(buffer *camera)
 
 void city_view_foreach_map_tile(map_callback *callback)
 {
+    int y_origin = data.city_canvas_mode ? 0 : data.viewport.y;
     int odd = 0;
     int y_view = data.camera.tile.y - 8;
-    int y_graphic = data.viewport.y - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
+    int y_graphic = y_origin - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
     for (int y = 0; y < data.viewport.height_tiles + 21; y++) {
         if (y_view >= 0 && y_view < VIEW_Y_MAX) {
             int x_graphic = -(4 * TILE_WIDTH_PIXELS) - data.camera.pixel.x;
@@ -526,9 +544,10 @@ void city_view_foreach_map_tile(map_callback *callback)
 
 void city_view_foreach_valid_map_tile(map_callback *callback)
 {
+    int y_origin = data.city_canvas_mode ? 0 : data.viewport.y;
     int odd = 0;
     int y_view = data.camera.tile.y - 8;
-    int y_graphic = data.viewport.y - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
+    int y_graphic = y_origin - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
     for (int y = 0; y < data.viewport.height_tiles + 21; y++) {
         if (y_view >= 0 && y_view < VIEW_Y_MAX) {
             int x_graphic = -(4 * TILE_WIDTH_PIXELS) - data.camera.pixel.x;
@@ -557,9 +576,10 @@ void city_view_foreach_valid_map_tile(map_callback *callback)
 
 void city_view_foreach_valid_map_tile_row(map_callback *callback1, map_callback *callback2, map_callback *callback3)
 {
+    int y_origin = data.city_canvas_mode ? 0 : data.viewport.y;
     int odd = 0;
     int y_view = data.camera.tile.y - 8;
-    int y_graphic = data.viewport.y - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
+    int y_graphic = y_origin - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
     int x_graphic, x_view;
     for (int y = 0; y < data.viewport.height_tiles + 21; y++) {
         if (y_view >= 0 && y_view < VIEW_Y_MAX) {
@@ -636,11 +656,12 @@ static void do_valid_callback(int view_x, int view_y, int grid_offset, map_callb
 
 void city_view_foreach_tile_in_range(int grid_offset, int size, int radius, map_callback *callback)
 {
+    int y_origin = data.city_canvas_mode ? 0 : data.viewport.y;
     int x, y;
     city_view_grid_offset_to_xy_view(grid_offset, &x, &y);
     x = (x - data.camera.tile.x) * TILE_WIDTH_PIXELS
         - (y & 1) * HALF_TILE_WIDTH_PIXELS - data.camera.pixel.x + data.viewport.x;
-    y = (y - data.camera.tile.y - 1) * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y + data.viewport.y;
+    y = (y - data.camera.tile.y - 1) * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y + y_origin;
     int orientation_x = X_DIRECTION_FOR_ORIENTATION[data.orientation / 2];
     int orientation_y = Y_DIRECTION_FOR_ORIENTATION[data.orientation / 2];
 
@@ -708,6 +729,68 @@ void city_view_foreach_tile_in_range(int grid_offset, int size, int radius, map_
         x_offset += TILE_WIDTH_PIXELS;
         y_offset += TILE_HEIGHT_PIXELS;
     }
+}
+
+int city_view_get_zoom(void)
+{
+    return data.zoom_percentage ? data.zoom_percentage : 100;
+}
+
+void city_view_zoom_to(int new_zoom, int focus_x, int focus_y)
+{
+    // Clamp and snap to step
+    new_zoom = new_zoom / CITY_VIEW_ZOOM_STEP * CITY_VIEW_ZOOM_STEP;
+    if (new_zoom < CITY_VIEW_ZOOM_MIN) {
+        new_zoom = CITY_VIEW_ZOOM_MIN;
+    }
+    if (new_zoom > CITY_VIEW_ZOOM_MAX) {
+        new_zoom = CITY_VIEW_ZOOM_MAX;
+    }
+    if (new_zoom == data.zoom_percentage) {
+        return;
+    }
+
+    // Position of focus point in city canvas space before zoom change
+    int old_canvas_x = (focus_x - data.viewport.x) * 100 / data.zoom_percentage;
+    int old_canvas_y = (focus_y - data.viewport.y) * 100 / data.zoom_percentage;
+
+    // Get current camera in absolute pixel space
+    int cam_x, cam_y;
+    city_view_get_camera_in_pixels(&cam_x, &cam_y);
+
+    // Apply new zoom and recompute viewport
+    data.zoom_percentage = new_zoom;
+    config_set(CONFIG_UI_CITY_ZOOM, new_zoom);
+    if (data.sidebar_collapsed) {
+        set_viewport_without_sidebar();
+    } else {
+        set_viewport_with_sidebar();
+    }
+
+    // Position of focus point in city canvas space after zoom change
+    int new_canvas_x = (focus_x - data.viewport.x) * 100 / new_zoom;
+    int new_canvas_y = (focus_y - data.viewport.y) * 100 / new_zoom;
+
+    // Move camera so the focus point stays under the cursor
+    city_view_set_camera_from_pixel_position(
+        cam_x + old_canvas_x - new_canvas_x,
+        cam_y + old_canvas_y - new_canvas_y);
+}
+
+void city_view_get_city_canvas_size(int *width, int *height)
+{
+    *width = data.viewport.city_canvas_width;
+    *height = data.viewport.city_canvas_height;
+}
+
+void city_view_begin_city_draw(void)
+{
+    data.city_canvas_mode = 1;
+}
+
+void city_view_end_city_draw(void)
+{
+    data.city_canvas_mode = 0;
 }
 
 void city_view_foreach_minimap_tile(

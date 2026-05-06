@@ -26,6 +26,22 @@ static struct {
 
 static clip_info clip;
 
+// City canvas for zoomed city rendering
+static struct {
+    color_t *pixels;
+    int width;
+    int height;
+} city_canvas;
+
+// Saved main canvas state when switched to city canvas
+static struct {
+    color_t *pixels;
+    int width;
+    int height;
+    struct { int x_start, x_end, y_start, y_end; } clip;
+    struct { int x, y; } translation;
+} saved_main;
+
 void graphics_init_canvas(int width, int height)
 {
     canvas.pixels = system_create_framebuffer(width, height);
@@ -277,6 +293,83 @@ void graphics_shade_rect(int x, int y, int width, int height, int darkness)
             int grey = (r + g + b) / 3 >> darkness;
             color_t new_pixel = (color_t) (grey << 16 | grey << 8 | grey);
             *pixel = new_pixel;
+        }
+    }
+}
+
+void graphics_switch_to_city_canvas(int width, int height)
+{
+    // Save main canvas state
+    saved_main.pixels = canvas.pixels;
+    saved_main.width = canvas.width;
+    saved_main.height = canvas.height;
+    saved_main.clip.x_start = clip_rectangle.x_start;
+    saved_main.clip.x_end = clip_rectangle.x_end;
+    saved_main.clip.y_start = clip_rectangle.y_start;
+    saved_main.clip.y_end = clip_rectangle.y_end;
+    saved_main.translation.x = translation.x;
+    saved_main.translation.y = translation.y;
+
+    // Allocate or resize city canvas as needed
+    if (city_canvas.width != width || city_canvas.height != height || !city_canvas.pixels) {
+        free(city_canvas.pixels);
+        city_canvas.pixels = (color_t *) malloc((size_t) width * height * sizeof(color_t));
+        city_canvas.width = width;
+        city_canvas.height = height;
+    }
+    if (city_canvas.pixels) {
+        memset(city_canvas.pixels, 0, (size_t) width * height * sizeof(color_t));
+    }
+
+    // Switch active canvas to city canvas with clean state
+    canvas.pixels = city_canvas.pixels;
+    canvas.width = city_canvas.width;
+    canvas.height = city_canvas.height;
+    translation.x = 0;
+    translation.y = 0;
+    clip_rectangle.x_start = 0;
+    clip_rectangle.x_end = width;
+    clip_rectangle.y_start = 0;
+    clip_rectangle.y_end = height;
+}
+
+void graphics_restore_main_canvas(void)
+{
+    canvas.pixels = saved_main.pixels;
+    canvas.width = saved_main.width;
+    canvas.height = saved_main.height;
+    clip_rectangle.x_start = saved_main.clip.x_start;
+    clip_rectangle.x_end = saved_main.clip.x_end;
+    clip_rectangle.y_start = saved_main.clip.y_start;
+    clip_rectangle.y_end = saved_main.clip.y_end;
+    translation.x = saved_main.translation.x;
+    translation.y = saved_main.translation.y;
+}
+
+void graphics_blit_city_canvas_to_main(int dst_x, int dst_y, int dst_w, int dst_h)
+{
+    if (!city_canvas.pixels || city_canvas.width <= 0 || city_canvas.height <= 0
+            || dst_w <= 0 || dst_h <= 0) {
+        return;
+    }
+    int sw = city_canvas.width;
+    int sh = city_canvas.height;
+    if (sw == dst_w && sh == dst_h) {
+        // 1:1 copy (zoom == 100%)
+        for (int dy = 0; dy < dst_h; dy++) {
+            memcpy(&canvas.pixels[(dst_y + dy) * canvas.width + dst_x],
+                city_canvas.pixels + dy * sw,
+                (size_t) dst_w * sizeof(color_t));
+        }
+    } else {
+        // Nearest-neighbor scale
+        for (int dy = 0; dy < dst_h; dy++) {
+            int sy = dy * sh / dst_h;
+            const color_t *src_row = city_canvas.pixels + sy * sw;
+            color_t *dst_row = &canvas.pixels[(dst_y + dy) * canvas.width + dst_x];
+            for (int dx = 0; dx < dst_w; dx++) {
+                dst_row[dx] = src_row[dx * sw / dst_w];
+            }
         }
     }
 }

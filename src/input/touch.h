@@ -40,6 +40,7 @@ int touch_was_double_click(const touch *t);
 
 int touch_is_scroll(void);
 int touch_get_scroll(void);
+int touch_get_pinch_zoom(int *delta);
 
 void reset_touches(int reset_old_touch);
 
