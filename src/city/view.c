@@ -736,12 +736,37 @@ int city_view_get_zoom(void)
     return data.zoom_percentage ? data.zoom_percentage : 100;
 }
 
+int city_view_get_zoom_min(void)
+{
+    int map_w = map_grid_width();
+    int map_h = map_grid_height();
+    int vw = data.viewport.width_pixels;
+    int vh = data.viewport.height_pixels;
+    if (map_w <= 0 || map_h <= 0 || vw <= 0 || vh <= 0) {
+        return CITY_VIEW_ZOOM_MIN;
+    }
+    // Compute zoom level at which the full map just fits inside the viewport.
+    // canvas_width  = vw * 100 / zoom  >= map_w * TILE_WIDTH_PIXELS
+    // => zoom <= vw * 100 / (map_w * TILE_WIDTH_PIXELS)
+    // Similarly for height (map height in view rows = 2 * map_h half-rows).
+    int zoom_for_w = vw * 100 / (map_w * TILE_WIDTH_PIXELS);
+    int zoom_for_h = vh * 100 / (map_h * TILE_HEIGHT_PIXELS);
+    int min_fit = (zoom_for_w < zoom_for_h) ? zoom_for_w : zoom_for_h;
+    // Snap down to nearest step so the map fully fits at this zoom level.
+    min_fit = (min_fit / CITY_VIEW_ZOOM_STEP) * CITY_VIEW_ZOOM_STEP;
+    // Enforce the absolute floor.
+    if (min_fit < CITY_VIEW_ZOOM_MIN) {
+        min_fit = CITY_VIEW_ZOOM_MIN;
+    }
+    return min_fit;
+}
+
 void city_view_zoom_to(int new_zoom, int focus_x, int focus_y)
 {
     // Clamp and snap to step
     new_zoom = new_zoom / CITY_VIEW_ZOOM_STEP * CITY_VIEW_ZOOM_STEP;
-    if (new_zoom < CITY_VIEW_ZOOM_MIN) {
-        new_zoom = CITY_VIEW_ZOOM_MIN;
+    if (new_zoom < city_view_get_zoom_min()) {
+        new_zoom = city_view_get_zoom_min();
     }
     if (new_zoom > CITY_VIEW_ZOOM_MAX) {
         new_zoom = CITY_VIEW_ZOOM_MAX;
