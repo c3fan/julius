@@ -347,6 +347,7 @@ set(FIGURE_FILES
     ${PROJECT_SOURCE_DIR}/src/figure/image.c
     ${PROJECT_SOURCE_DIR}/src/figure/movement.c
     ${PROJECT_SOURCE_DIR}/src/figure/name.c
+    ${PROJECT_SOURCE_DIR}/src/figure/roamer_preview.c
     ${PROJECT_SOURCE_DIR}/src/figure/phrase.c
     ${PROJECT_SOURCE_DIR}/src/figure/properties.c
     ${PROJECT_SOURCE_DIR}/src/figure/route.c

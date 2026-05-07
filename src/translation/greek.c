@@ -47,6 +47,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Εμφάνιση συρόμενου μεγέθους κατασκευής"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Επισήμανση λεγεώνας στο πέρασμα του κέρσορα"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Ενεργοποίηση πλευρικής στήλης στρατού"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Επιδιόρθωση σφάλματος μετανάστευσης στο πολύ δύσκολο επίπεδο"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Επιδιόρθωση φαντασμάτων 100 ετών"},
     {TR_HOTKEY_TITLE, "Ρύθμιση πλήκτρων συντομεύσεων του Julius"},

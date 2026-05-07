@@ -1,13 +1,16 @@
 #include "city.h"
 
+#include "building/building.h"
 #include "building/construction.h"
 #include "building/properties.h"
 #include "city/finance.h"
 #include "city/view.h"
 #include "city/warning.h"
+#include "core/config.h"
 #include "core/direction.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
+#include "figure/roamer_preview.h"
 #include "game/settings.h"
 #include "game/state.h"
 #include "graphics/button.h"
@@ -33,6 +36,7 @@
 static struct {
     map_tile current_tile;
     map_tile selected_tile;
+    int routing_grid_offset;
     int new_start_grid_offset;
     int capture_input;
 } data;
@@ -288,6 +292,31 @@ static int adjust_offset_for_orientation(int grid_offset, int size)
     }
 }
 
+static int selected_building_grid_offset(int grid_offset)
+{
+    int building_id = map_building_at(grid_offset);
+    if (!building_id) {
+        return 0;
+    }
+    building *b = building_main(building_get(building_id));
+    return b->grid_offset;
+}
+
+static void update_routing_preview(int grid_offset)
+{
+    if (data.routing_grid_offset == grid_offset) {
+        return;
+    }
+    data.routing_grid_offset = grid_offset;
+    if (!config_get(CONFIG_UI_SHOW_ROAMING_PATH) || !grid_offset) {
+        figure_roamer_preview_reset_building_types();
+        return;
+    }
+    building *b = building_main(building_get(map_building_at(grid_offset)));
+    figure_roamer_preview_reset(b->type);
+    figure_roamer_preview_create(b->type, b->x, b->y);
+}
+
 static int has_confirmed_construction(int ghost_offset, int tile_offset, int range_size)
 {
     tile_offset = adjust_offset_for_orientation(tile_offset, range_size);
@@ -391,6 +420,7 @@ static void handle_first_touch(map_tile *tile)
         if (type == BUILDING_NONE && handle_right_click_allow_building_info(tile)) {
             scroll_drag_end();
             data.capture_input = 0;
+            update_routing_preview(selected_building_grid_offset(tile->grid_offset));
             window_building_info_show(tile->grid_offset);
             return;
         }
@@ -553,6 +583,9 @@ static void handle_mouse(const mouse *m)
         build_move(tile);
     }
     if (m->left.went_up) {
+        if (!building_construction_type()) {
+            update_routing_preview(selected_building_grid_offset(tile->grid_offset));
+        }
         build_end();
     }
     if (m->right.went_down && input_coords_in_city(m->x, m->y) && !building_construction_type()) {
@@ -689,4 +722,11 @@ void widget_city_clear_current_tile(void)
     data.selected_tile.y = -1;
     data.selected_tile.grid_offset = 0;
     data.current_tile.grid_offset = 0;
+    widget_city_clear_routing_preview();
+}
+
+void widget_city_clear_routing_preview(void)
+{
+    data.routing_grid_offset = 0;
+    figure_roamer_preview_reset_building_types();
 }

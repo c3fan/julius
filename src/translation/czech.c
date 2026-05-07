@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Zobrazit velikost konstrukce při přetahování"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Zvýraznit legii při najetí kurzorem"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Povolit vojenský postranní panel"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Opravit chybu imigrace na velmi těžkou obtížnost"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Opravit chybu stoletých duchů"},
     {TR_HOTKEY_TITLE, "Nastavení klávesových zkratek Julia"},

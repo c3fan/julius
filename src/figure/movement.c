@@ -17,6 +17,11 @@
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 
+static int is_preview_figure(const figure *f)
+{
+    return f->faction_id == FIGURE_FACTION_ROAMER_PREVIEW;
+}
+
 static void advance_tick(figure *f)
 {
     switch (f->direction) {
@@ -81,7 +86,10 @@ static void move_to_next_tile(figure *f)
 {
     int old_x = f->x;
     int old_y = f->y;
-    map_figure_delete(f);
+    int is_preview = is_preview_figure(f);
+    if (!is_preview) {
+        map_figure_delete(f);
+    }
     switch (f->direction) {
         default:
             return;
@@ -111,7 +119,9 @@ static void move_to_next_tile(figure *f)
             break;
     }
     f->grid_offset += map_grid_direction_delta(f->direction);
-    map_figure_add(f);
+    if (!is_preview) {
+        map_figure_add(f);
+    }
     if (map_terrain_is(f->grid_offset, TERRAIN_ROAD)) {
         f->is_on_road = 1;
         if (map_terrain_is(f->grid_offset, TERRAIN_WATER)) { // bridge
@@ -120,7 +130,9 @@ static void move_to_next_tile(figure *f)
     } else {
         f->is_on_road = 0;
     }
-    figure_combat_attack_figure_at(f, f->grid_offset);
+    if (!is_preview) {
+        figure_combat_attack_figure_at(f, f->grid_offset);
+    }
     f->previous_tile_x = old_x;
     f->previous_tile_y = old_y;
 }
@@ -219,7 +231,9 @@ static void walk_ticks(figure *f, int num_ticks, int roaming_enabled)
         if (f->progress_on_tile < 15) {
             advance_tick(f);
         } else {
-            figure_service_provide_coverage(f);
+            if (!is_preview_figure(f)) {
+                figure_service_provide_coverage(f);
+            }
             f->progress_on_tile = 15;
             if (f->routing_path_id <= 0) {
                 figure_route_add(f);
@@ -378,7 +392,7 @@ void figure_movement_roam_ticks(figure *f, int num_ticks)
             f->progress_on_tile = 15;
             f->roam_random_counter++;
             int came_from_direction = (f->previous_tile_direction + 4) % 8;
-            if (figure_service_provide_coverage(f)) {
+            if (!is_preview_figure(f) && figure_service_provide_coverage(f)) {
                 return;
             }
             int road_tiles[8];

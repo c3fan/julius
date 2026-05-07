@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Zeige Konstruktionsgröße beim Bauen"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Hebe Soldaten bei Berührung mit der Maus hervor"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Zeige Legionen am rechten Bildschirmrand"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Behebe Immigrationsfehler auf 'Sehr schwierig'"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Behebe '100 Jahre alte Geister'"},
     {TR_HOTKEY_TITLE, "Julius Tastenkombinationen einstellen"},

@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Показывать область при групповой стройке зданий"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Подсвечивать легион под курсором"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Отображать боковую панель армии"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Исправить баг иммиграции в режиме \"Очень сложный\""},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Исправить баг 100-летних жителей"},
     {TR_HOTKEY_TITLE, "Горячие клавиши Julius"},

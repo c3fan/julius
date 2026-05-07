@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Mostrar medidas de construcción al arrastrar"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Resaltar legión bajo el cursor"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Activar barra militar lateral"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Corregir bug impidiendo inmigración en Muy Difícil"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Corregir bug creando fantasmas con 100 años"},
     {TR_HOTKEY_TITLE, "Configuración de atajos de teclado de Julius"},

@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "显示拖动建设大小"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "鼠标悬停时高亮军团"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "显示军队信息侧栏"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "修复非常困难不来人BUG"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "修复人口百岁仍占房BUG"},
     {TR_HOTKEY_TITLE, "Julius 热键绑定"},

@@ -28,6 +28,7 @@ static const char *ini_keys[] = {
     "ui_show_construction_size",
     "ui_highlight_legions",
     "ui_show_military_sidebar",
+    "ui_show_roaming_path",
     "ui_show_speedrun_info",
     "ui_city_zoom",
 };

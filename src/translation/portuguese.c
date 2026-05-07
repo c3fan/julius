@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Mostrar o tamanho da construção ao arrastar"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Realçar legiões focadas pelo mouse"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Mostrar barra lateral militar"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Consertar falha durante a imigração na dificuldade máxima"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Consertar falha dos 'fantasmas' de 100 anos"},
     {TR_HOTKEY_TITLE, "Configurações de teclas de atalho do Julius"},

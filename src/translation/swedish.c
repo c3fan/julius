@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Visa dragbar byggnadsstorlek"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Framhäv legion när muspekaren är över den"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Använd militärsidopanelen"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Fixa invandringsproblem med svårighetsgraden Väldigt Svårt"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Fixa 100-års spöken"},
     {TR_HOTKEY_TITLE, "Julius kortkommandon"},

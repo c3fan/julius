@@ -44,6 +44,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "ドラッグ可能な建設サイズを表示"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "カーソルを合わせた軍団をハイライト"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "軍事サイドバーを有効化"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "「とても難しい」難易度の移民バグを修正"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "100歳の幽霊バグを修正"},
     {TR_HOTKEY_TITLE, "Julius ホットキー設定"},

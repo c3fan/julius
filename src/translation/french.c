@@ -46,6 +46,7 @@ static translation_string all_strings[] = {
     {TR_CONFIG_SHOW_CONSTRUCTION_SIZE, "Voir la taille des constructions durant le glissement de la souris"},
     {TR_CONFIG_HIGHLIGHT_LEGIONS, "Mettre en surbrillance les légions au survol du curseur"},
     {TR_CONFIG_SHOW_MILITARY_SIDEBAR, "Activer la barre latérale militaire"},
+    {TR_CONFIG_SHOW_ROAMING_PATH, "Show roaming path preview"},
     {TR_CONFIG_FIX_IMMIGRATION_BUG, "Corrige le bug d'immigration en mode très difficile"},
     {TR_CONFIG_FIX_100_YEAR_GHOSTS, "Corrige le bug des fantômes de 100 ans"},
     {TR_HOTKEY_TITLE, "Configuration raccourcis clavier"},

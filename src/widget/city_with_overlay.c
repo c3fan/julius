@@ -5,6 +5,7 @@
 #include "building/industry.h"
 #include "city/view.h"
 #include "core/config.h"
+#include "figure/roamer_preview.h"
 #include "core/log.h"
 #include "game/resource.h"
 #include "game/state.h"
@@ -164,6 +165,28 @@ static int draw_building_as_deleted(building *b)
     return b->id && (b->is_deleted || map_property_is_deleted(b->grid_offset));
 }
 
+static void draw_roamer_frequency(int x, int y, int grid_offset)
+{
+    if (!config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
+        return;
+    }
+    int travel_frequency = figure_roamer_preview_get_frequency(grid_offset);
+    if (travel_frequency > 0 && travel_frequency <= FIGURE_ROAMER_PREVIEW_MAX_PASSAGES) {
+        static const color_t frequency_colors[] = {
+            0x663377ff, 0x662266ee, 0x661155dd, 0x660044cc,
+            0x660033c4, 0x660022bb, 0x660011a4, 0x66000088
+        };
+        image_draw_blend(image_group(GROUP_TERRAIN_FLAT_TILE), x, y,
+            frequency_colors[travel_frequency - 1]);
+    } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_TILE) {
+        image_draw_blend(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, COLOR_MASK_RED);
+    } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_EXIT_TILE) {
+        image_draw_blend(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, COLOR_MASK_GREEN);
+    } else if (travel_frequency == FIGURE_ROAMER_PREVIEW_ENTRY_EXIT_TILE) {
+        image_draw_blend(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, 0xff66ff);
+    }
+}
+
 static int is_multi_tile_terrain(int grid_offset)
 {
     return !map_building_at(grid_offset) && map_property_multi_tile_size(grid_offset) > 1;
@@ -310,6 +333,9 @@ static void draw_footprint(int x, int y, int grid_offset)
         } else {
             image_draw_isometric_footprint_from_draw_tile(map_image_at(grid_offset), x, y, 0);
         }
+    }
+    if (grid_offset >= 0) {
+        draw_roamer_frequency(x, y, grid_offset);
     }
 }
 
