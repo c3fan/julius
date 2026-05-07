@@ -23,9 +23,23 @@
 #include "widget/scenario_minimap.h"
 #include "window/city.h"
 
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAX_SCENARIOS 15
+#define MAX_CCK_MAPS 200
+#define MAP_TIME_MAX 64
+#define MAP_HASH_MAX 128
+
+typedef struct {
+    char filename[FILE_NAME_MAX];
+    char id[FILE_NAME_MAX];
+    char name[FILE_NAME_MAX];
+    char time[MAP_TIME_MAX];
+    char hash[MAP_HASH_MAX];
+} cck_map_entry;
 
 static void button_select_item(int index, int param2);
 static void button_start_scenario(int param1, int param2);
@@ -63,41 +77,205 @@ static struct {
     int focus_toggle_button;
     int selected_item;
     int show_minimap;
+    int list_version;
+    int has_metadata_list;
     char selected_scenario_filename[FILE_NAME_MAX];
     uint8_t selected_scenario_display[FILE_NAME_MAX];
+    cck_map_entry scenarios[MAX_CCK_MAPS];
+    int num_scenarios;
 
-    const dir_listing *scenarios;
+    const dir_listing *fallback_scenarios;
 } data;
+
+static char *skip_ws(char *str)
+{
+    while (*str && isspace((unsigned char)*str)) {
+        str++;
+    }
+    return str;
+}
+
+static void trim_right(char *str)
+{
+    int length = (int)strlen(str);
+    while (length > 0 && isspace((unsigned char)str[length - 1])) {
+        str[length - 1] = 0;
+        length--;
+    }
+}
+
+static int read_list_version(void)
+{
+    FILE *fp = file_open("list.version", "rb");
+    if (!fp) {
+        return 0;
+    }
+
+    char line[64];
+    if (!fgets(line, sizeof(line), fp)) {
+        file_close(fp);
+        return 0;
+    }
+    file_close(fp);
+
+    char *start = skip_ws(line);
+    if (!*start) {
+        return 0;
+    }
+
+    char *end = 0;
+    long version = strtol(start, &end, 10);
+    if (end == start || version < 0) {
+        return 0;
+    }
+    end = skip_ws(end);
+    if (*end) {
+        return 0;
+    }
+    return (int)version;
+}
+
+static void set_map_entry_from_filename(int index, const char *filename)
+{
+    cck_map_entry *entry = &data.scenarios[index];
+    strncpy(entry->filename, filename, FILE_NAME_MAX);
+    entry->filename[FILE_NAME_MAX - 1] = 0;
+    strncpy(entry->id, filename, FILE_NAME_MAX);
+    entry->id[FILE_NAME_MAX - 1] = 0;
+    strncpy(entry->name, filename, FILE_NAME_MAX);
+    entry->name[FILE_NAME_MAX - 1] = 0;
+    file_remove_extension((uint8_t*)entry->name);
+    entry->time[0] = 0;
+    entry->hash[0] = 0;
+}
+
+static int load_metadata_list(void)
+{
+    FILE *fp = file_open("maps.list", "rb");
+    if (!fp) {
+        return 0;
+    }
+
+    data.num_scenarios = 0;
+    char line[4 * FILE_NAME_MAX];
+    while (fgets(line, sizeof(line), fp)) {
+        char *start = skip_ws(line);
+        trim_right(start);
+        if (!*start || *start == '#') {
+            continue;
+        }
+
+        char *id = start;
+        char *name = strchr(id, '|');
+        if (!name) {
+            continue;
+        }
+        *name++ = 0;
+
+        char *time = strchr(name, '|');
+        if (!time) {
+            continue;
+        }
+        *time++ = 0;
+
+        char *hash = strchr(time, '|');
+        if (!hash) {
+            continue;
+        }
+        *hash++ = 0;
+
+        id = skip_ws(id);
+        name = skip_ws(name);
+        time = skip_ws(time);
+        hash = skip_ws(hash);
+        trim_right(id);
+        trim_right(name);
+        trim_right(time);
+        trim_right(hash);
+        if (!*id || !*name || !*time || !*hash) {
+            continue;
+        }
+
+        if (data.num_scenarios >= MAX_CCK_MAPS) {
+            break;
+        }
+
+        cck_map_entry *entry = &data.scenarios[data.num_scenarios];
+        strncpy(entry->id, id, FILE_NAME_MAX);
+        entry->id[FILE_NAME_MAX - 1] = 0;
+        strncpy(entry->name, name, FILE_NAME_MAX);
+        entry->name[FILE_NAME_MAX - 1] = 0;
+        strncpy(entry->time, time, MAP_TIME_MAX);
+        entry->time[MAP_TIME_MAX - 1] = 0;
+        strncpy(entry->hash, hash, MAP_HASH_MAX);
+        entry->hash[MAP_HASH_MAX - 1] = 0;
+
+        strncpy(entry->filename, id, FILE_NAME_MAX);
+        entry->filename[FILE_NAME_MAX - 1] = 0;
+        if (!file_has_extension(entry->filename, "map")) {
+            file_append_extension(entry->filename, "map");
+        }
+
+        data.num_scenarios++;
+    }
+
+    file_close(fp);
+    return data.num_scenarios > 0;
+}
 
 static void init(void)
 {
     scenario_set_custom(2);
-    data.scenarios = dir_find_files_with_extension("map");
+    data.list_version = read_list_version();
+    data.has_metadata_list = load_metadata_list();
+    if (!data.has_metadata_list) {
+        data.fallback_scenarios = dir_find_files_with_extension("map");
+        data.num_scenarios = data.fallback_scenarios->num_files;
+        if (data.num_scenarios > MAX_CCK_MAPS) {
+            data.num_scenarios = MAX_CCK_MAPS;
+        }
+        for (int i = 0; i < data.num_scenarios; i++) {
+            set_map_entry_from_filename(i, data.fallback_scenarios->files[i]);
+        }
+    }
     data.focus_button_id = 0;
     data.focus_toggle_button = 0;
     data.show_minimap = 0;
+    data.selected_scenario_filename[0] = 0;
+    data.selected_scenario_display[0] = 0;
     button_select_item(0, 0);
-    scrollbar_init(&scrollbar, 0, data.scenarios->num_files);
+    scrollbar_init(&scrollbar, 0, data.num_scenarios);
 }
 
 static void draw_scenario_list(void)
 {
     inner_panel_draw(16, 210, 16, 16);
-    char file[FILE_NAME_MAX];
-    uint8_t displayable_file[FILE_NAME_MAX];
     for (int i = 0; i < MAX_SCENARIOS; i++) {
+        int list_index = i + scrollbar.scroll_position;
+        if (list_index >= data.num_scenarios) {
+            continue;
+        }
         font_t font = FONT_NORMAL_GREEN;
         if (data.focus_button_id == i + 1) {
             font = FONT_NORMAL_WHITE;
-        } else if (!data.focus_button_id && data.selected_item == i + scrollbar.scroll_position) {
+        } else if (!data.focus_button_id && data.selected_item == list_index) {
             font = FONT_NORMAL_WHITE;
         }
-        strcpy(file, data.scenarios->files[i + scrollbar.scroll_position]);
-        encoding_from_utf8(file, displayable_file, FILE_NAME_MAX);
-        file_remove_extension(displayable_file);
+        uint8_t displayable_file[FILE_NAME_MAX];
+        encoding_from_utf8(data.scenarios[list_index].name, displayable_file, FILE_NAME_MAX);
         text_ellipsize(displayable_file, font, 240);
         text_draw(displayable_file, 24, 220 + 16 * i, font, 0);
     }
+}
+
+static void draw_metadata_line(const char *label, const char *value, int x, int y, int width)
+{
+    char line[2 * FILE_NAME_MAX];
+    snprintf(line, sizeof(line), "%s: %s", label, value);
+    uint8_t displayable_line[2 * FILE_NAME_MAX];
+    encoding_from_utf8(line, displayable_line, sizeof(displayable_line));
+    text_ellipsize(displayable_line, FONT_NORMAL_WHITE, width);
+    text_draw(displayable_line, x, y, FONT_NORMAL_WHITE, 0);
 }
 
 static void draw_scenario_info(void)
@@ -111,7 +289,16 @@ static void draw_scenario_info(void)
     text_ellipsize(data.selected_scenario_display, FONT_LARGE_BLACK, scenario_info_width + 10);
     text_draw_centered(data.selected_scenario_display,
         scenario_info_x, 25, scenario_info_width + 10, FONT_LARGE_BLACK, 0);
-    text_draw_centered(scenario_brief_description(), scenario_info_x, 60, scenario_info_width, FONT_NORMAL_WHITE, 0);
+    if (data.has_metadata_list && data.selected_item >= 0 && data.selected_item < data.num_scenarios) {
+        const cck_map_entry *entry = &data.scenarios[data.selected_item];
+        draw_metadata_line("ID", entry->id, scenario_info_x + 10, 60, scenario_info_width);
+        draw_metadata_line("TIME", entry->time, scenario_info_x + 10, 76, scenario_info_width);
+        draw_metadata_line("HASH", entry->hash, scenario_info_x + 10, 92, scenario_info_width);
+    } else if (data.list_version > 0) {
+        char version_text[32];
+        snprintf(version_text, sizeof(version_text), "%d", data.list_version);
+        draw_metadata_line("LIST VERSION", version_text, scenario_info_x + 10, 60, scenario_info_width);
+    }
     lang_text_draw_year(scenario_property_start_year(), scenario_criteria_x, 90, FONT_LARGE_BLACK);
 
     if (data.show_minimap) {
@@ -255,19 +442,22 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void button_select_item(int index, int param2)
 {
-    if (index >= data.scenarios->num_files) {
+    int selected = scrollbar.scroll_position + index;
+    if (selected < 0 || selected >= data.num_scenarios) {
         return;
     }
-    data.selected_item = scrollbar.scroll_position + index;
-    strcpy(data.selected_scenario_filename, data.scenarios->files[data.selected_item]);
+    data.selected_item = selected;
+    strcpy(data.selected_scenario_filename, data.scenarios[data.selected_item].filename);
     game_file_load_scenario_data(data.selected_scenario_filename);
-    encoding_from_utf8(data.selected_scenario_filename, data.selected_scenario_display, FILE_NAME_MAX);
-    file_remove_extension(data.selected_scenario_display);
+    encoding_from_utf8(data.scenarios[data.selected_item].name, data.selected_scenario_display, FILE_NAME_MAX);
     window_invalidate();
 }
 
 static void button_start_scenario(int param1, int param2)
 {
+    if (!data.selected_scenario_filename[0]) {
+        return;
+    }
     if (game_file_start_scenario(data.selected_scenario_filename)) {
         sound_music_update(1);
         window_city_show();
