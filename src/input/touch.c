@@ -22,6 +22,7 @@ static struct {
     int last_scroll_position;
     touch_mode mode;
     emulated_mouse_click touchpad_mode_click_type;
+    int pinch_prev_distance;
 } data;
 
 static int start_delayed(const touch *t)
@@ -126,6 +127,34 @@ int touch_get_scroll(void)
     return (delta > 0) ? SCROLL_UP : SCROLL_DOWN;
 }
 
+int touch_get_pinch_zoom(int *delta)
+{
+    if (get_total_active_touches() != 2) {
+        data.pinch_prev_distance = 0;
+        return 0;
+    }
+    const touch *first = touch_get_earliest();
+    const touch *last = touch_get_latest();
+    if (!first->in_use || !last->in_use || !first->has_moved || !last->has_moved) {
+        return 0;
+    }
+    int dx = first->current_point.x - last->current_point.x;
+    int dy = first->current_point.y - last->current_point.y;
+    // Use Manhattan distance for performance (avoids sqrt calculation)
+    int current_dist = abs(dx) + abs(dy);
+    if (data.pinch_prev_distance <= 0) {
+        data.pinch_prev_distance = current_dist;
+        return 0;
+    }
+    int d = current_dist - data.pinch_prev_distance;
+    data.pinch_prev_distance = current_dist;
+    if (d == 0) {
+        return 0;
+    }
+    *delta = d;
+    return 1;
+}
+
 static int get_unused_touch_index(void)
 {
     int i = 0;
@@ -208,6 +237,7 @@ void reset_touches(int reset_old_touch)
             t->has_moved = 0;
             t->has_ended = 0;
             data.last_scroll_position = 0;
+            data.pinch_prev_distance = 0;
         } else {
             t->frame_movement.x = t->current_point.x - t->previous_frame_point.x;
             t->frame_movement.y = t->current_point.y - t->previous_frame_point.y;

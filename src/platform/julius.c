@@ -226,6 +226,8 @@ static void handle_mouse_button(SDL_MouseButtonEvent *event, int is_down)
         mouse_set_left_down(is_down);
     } else if (event->button == SDL_BUTTON_RIGHT) {
         mouse_set_right_down(is_down);
+    } else if (event->button == SDL_BUTTON_MIDDLE) {
+        mouse_set_middle_down(is_down);
     }
 }
 

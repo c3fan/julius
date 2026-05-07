@@ -46,7 +46,14 @@ static void set_city_clip_rectangle(void)
 
 void widget_city_draw(void)
 {
-    set_city_clip_rectangle();
+    if (city_view_zoom_update_animation()) {
+        window_request_refresh();
+    }
+
+    int canvas_w, canvas_h;
+    city_view_get_city_canvas_size(&canvas_w, &canvas_h);
+    city_view_begin_city_draw();
+    graphics_switch_to_city_canvas(canvas_w, canvas_h);
 
     if (game_state_overlay()) {
         city_with_overlay_draw(&data.current_tile);
@@ -54,16 +61,35 @@ void widget_city_draw(void)
         city_without_overlay_draw(0, 0, &data.current_tile);
     }
 
-    graphics_reset_clip_rectangle();
+    graphics_restore_main_canvas();
+    city_view_end_city_draw();
+
+    int vx, vy, vw, vh;
+    city_view_get_viewport(&vx, &vy, &vw, &vh);
+    graphics_blit_city_canvas_to_main(vx, vy, vw, vh);
 }
 
 void widget_city_draw_for_figure(int figure_id, pixel_coordinate *coord)
 {
-    set_city_clip_rectangle();
+    int canvas_w, canvas_h;
+    city_view_get_city_canvas_size(&canvas_w, &canvas_h);
+    city_view_begin_city_draw();
+    graphics_switch_to_city_canvas(canvas_w, canvas_h);
 
     city_without_overlay_draw(figure_id, coord, &data.current_tile);
 
-    graphics_reset_clip_rectangle();
+    graphics_restore_main_canvas();
+    city_view_end_city_draw();
+
+    int vx, vy, vw, vh;
+    city_view_get_viewport(&vx, &vy, &vw, &vh);
+    graphics_blit_city_canvas_to_main(vx, vy, vw, vh);
+
+    // Convert coord from city canvas to main canvas (screen) coordinates
+    if (coord && canvas_w > 0 && canvas_h > 0) {
+        coord->x = vx + (coord->x * vw + canvas_w / 2) / canvas_w;
+        coord->y = vy + (coord->y * vh + canvas_h / 2) / canvas_h;
+    }
 }
 
 void widget_city_draw_construction_cost_and_size(void)
@@ -435,6 +461,30 @@ static void handle_touch(void)
         return;
     }
 
+    // Handle pinch-zoom with two fingers (not during construction)
+    if (!building_construction_in_progress()) {
+        int zoom_delta;
+        if (touch_get_pinch_zoom(&zoom_delta)) {
+            const touch *latest = touch_get_latest();
+            if (latest->in_use) {
+                int mid_x = (first->current_point.x + latest->current_point.x) / 2;
+                int mid_y = (first->current_point.y + latest->current_point.y) / 2;
+                int vx, vy, vw, vh;
+                city_view_get_viewport(&vx, &vy, &vw, &vh);
+                if (mid_x >= vx && mid_x < vx + vw && mid_y >= vy && mid_y < vy + vh) {
+                    // Use Manhattan distance (sum of absolute dx+dy) for performance;
+                    // ~50 units change ≈ one zoom step
+                    int zoom_change = zoom_delta * CITY_VIEW_ZOOM_STEP / 50;
+                    if (zoom_change != 0) {
+                        city_view_zoom_to(city_view_get_zoom() + zoom_change, mid_x, mid_y);
+                        window_request_refresh();
+                    }
+                }
+            }
+            return;
+        }
+    }
+
     map_tile *tile = &data.current_tile;
     if (!building_construction_in_progress() || input_coords_in_city(first->current_point.x, first->current_point.y)) {
         update_city_view_coords(first->current_point.x, first->current_point.y, tile);
@@ -465,6 +515,32 @@ static void handle_mouse(const mouse *m)
     map_tile *tile = &data.current_tile;
     update_city_view_coords(m->x, m->y, tile);
     building_construction_reset_draw_as_constructing();
+
+    // Handle scroll wheel zoom when mouse is inside the city viewport
+    if (!building_construction_in_progress() &&
+            (m->scrolled == SCROLL_UP || m->scrolled == SCROLL_DOWN)) {
+        int vx, vy, vw, vh;
+        city_view_get_viewport(&vx, &vy, &vw, &vh);
+        if (m->x >= vx && m->x < vx + vw && m->y >= vy && m->y < vy + vh) {
+            int new_zoom = city_view_get_zoom() + (m->scrolled == SCROLL_UP
+                ? CITY_VIEW_ZOOM_STEP : -CITY_VIEW_ZOOM_STEP);
+            city_view_zoom_to(new_zoom, m->x, m->y);
+            window_request_refresh();
+            return;
+        }
+    }
+
+    // Middle button click: reset zoom to 100% with smooth animation
+    if (m->middle.went_down && !building_construction_in_progress()) {
+        int vx, vy, vw, vh;
+        city_view_get_viewport(&vx, &vy, &vw, &vh);
+        if (m->x >= vx && m->x < vx + vw && m->y >= vy && m->y < vy + vh) {
+            city_view_zoom_to(100, m->x, m->y);
+            window_request_refresh();
+            return;
+        }
+    }
+
     if (m->left.went_down) {
         if (handle_legion_click(tile)) {
             return;

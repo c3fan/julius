@@ -34,6 +34,7 @@ typedef struct {
     scroll_state scrolled; /**< Scroll state (up/down/none) */
     mouse_button left; /**< Left mouse button */
     mouse_button right; /**< Right mouse button */
+    mouse_button middle; /**< Middle mouse button */
     int is_inside_window; /**< Whether the mouse is in the window */
     int window_has_focus; /**< Whether the window has focus */
     int is_touch; /**< Whether the mouse is a translated touch event */
@@ -55,6 +56,8 @@ void mouse_set_position(int x, int y);
 void mouse_set_left_down(int down);
 
 void mouse_set_right_down(int down);
+
+void mouse_set_middle_down(int down);
 
 void mouse_set_scroll(scroll_state state);
 

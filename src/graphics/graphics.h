@@ -28,6 +28,10 @@ typedef struct {
 void graphics_init_canvas(int width, int height);
 const void *graphics_canvas(void);
 
+void graphics_switch_to_city_canvas(int width, int height);
+void graphics_restore_main_canvas(void);
+void graphics_blit_city_canvas_to_main(int dst_x, int dst_y, int dst_w, int dst_h);
+
 void graphics_in_dialog(void);
 void graphics_reset_dialog(void);
 
