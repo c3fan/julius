@@ -46,6 +46,10 @@ static void set_city_clip_rectangle(void)
 
 void widget_city_draw(void)
 {
+    if (city_view_zoom_update_animation()) {
+        window_request_refresh();
+    }
+
     int canvas_w, canvas_h;
     city_view_get_city_canvas_size(&canvas_w, &canvas_h);
     city_view_begin_city_draw();
@@ -521,6 +525,17 @@ static void handle_mouse(const mouse *m)
             int new_zoom = city_view_get_zoom() + (m->scrolled == SCROLL_UP
                 ? CITY_VIEW_ZOOM_STEP : -CITY_VIEW_ZOOM_STEP);
             city_view_zoom_to(new_zoom, m->x, m->y);
+            window_request_refresh();
+            return;
+        }
+    }
+
+    // Middle button click: reset zoom to 100% with smooth animation
+    if (m->middle.went_down && !building_construction_in_progress()) {
+        int vx, vy, vw, vh;
+        city_view_get_viewport(&vx, &vy, &vw, &vh);
+        if (m->x >= vx && m->x < vx + vw && m->y >= vy && m->y < vy + vh) {
+            city_view_zoom_to(100, m->x, m->y);
             window_request_refresh();
             return;
         }

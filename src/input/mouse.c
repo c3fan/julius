@@ -95,6 +95,14 @@ void mouse_set_right_down(int down)
     last_click = 0;
 }
 
+void mouse_set_middle_down(int down)
+{
+    data.middle.system_change |= down ? SYSTEM_DOWN : SYSTEM_UP;
+    data.is_touch = 0;
+    data.is_inside_window = 1;
+    data.window_has_focus = 1;
+}
+
 void mouse_set_inside_window(int inside)
 {
     data.is_inside_window = inside;
@@ -119,6 +127,7 @@ void mouse_determine_button_state(void)
 {
     update_button_state(&data.left);
     update_button_state(&data.right);
+    update_button_state(&data.middle);
 }
 
 void mouse_set_scroll(scroll_state state)
@@ -144,6 +153,7 @@ void mouse_reset_button_state(void)
     last_click = 0;
     clear_mouse_button(&data.left);
     clear_mouse_button(&data.right);
+    clear_mouse_button(&data.middle);
 }
 
 const mouse *mouse_in_dialog(const mouse *m)

@@ -7,7 +7,7 @@
 #define VIEW_X_MAX 165
 #define VIEW_Y_MAX 325
 
-#define CITY_VIEW_ZOOM_MIN 10
+#define CITY_VIEW_ZOOM_MIN 25
 #define CITY_VIEW_ZOOM_MAX 200
 #define CITY_VIEW_ZOOM_STEP 10
 
@@ -60,6 +60,7 @@ void city_view_get_viewport_size_tiles(int *width, int *height);
 int city_view_get_zoom(void);
 int city_view_get_zoom_min(void);
 void city_view_zoom_to(int new_zoom, int focus_x, int focus_y);
+int city_view_zoom_update_animation(void);
 void city_view_get_city_canvas_size(int *width, int *height);
 void city_view_begin_city_draw(void);
 void city_view_end_city_draw(void);
