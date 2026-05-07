@@ -30,12 +30,14 @@
 #include <string.h>
 
 #define MAX_SCENARIOS 15
+// Keep this bounded to avoid excessive memory usage in static window state.
 #define MAX_CCK_MAPS 200
 #define MAP_TIME_MAX 64
 #define MAP_HASH_MAX 128
 #define LIST_VERSION_LINE_MAX 32
 #define MAP_LIST_LINE_MAX (4 * FILE_NAME_MAX + 8)
 #define METADATA_LINE_MAX (2 * FILE_NAME_MAX + 8)
+#define VERSION_TEXT_MAX 32
 #define MAP_FILE_EXTENSION "map"
 
 typedef struct {
@@ -109,6 +111,15 @@ static void trim_right(char *str)
     }
 }
 
+static void copy_string(char *dst, int dst_size, const char *src)
+{
+    if (dst_size <= 0) {
+        return;
+    }
+    strncpy(dst, src, dst_size);
+    dst[dst_size - 1] = 0;
+}
+
 static int read_list_version(void)
 {
     FILE *fp = file_open("list.version", "rb");
@@ -143,12 +154,9 @@ static int read_list_version(void)
 static void set_map_entry_from_filename(int index, const char *filename)
 {
     cck_map_entry *entry = &data.scenarios[index];
-    strncpy(entry->filename, filename, FILE_NAME_MAX);
-    entry->filename[FILE_NAME_MAX - 1] = 0;
-    strncpy(entry->id, filename, FILE_NAME_MAX);
-    entry->id[FILE_NAME_MAX - 1] = 0;
-    strncpy(entry->name, filename, FILE_NAME_MAX);
-    entry->name[FILE_NAME_MAX - 1] = 0;
+    copy_string(entry->filename, FILE_NAME_MAX, filename);
+    copy_string(entry->id, FILE_NAME_MAX, filename);
+    copy_string(entry->name, FILE_NAME_MAX, filename);
     file_remove_extension((uint8_t*)entry->name);
     entry->time[0] = 0;
     entry->hash[0] = 0;
@@ -200,23 +208,22 @@ static int load_metadata_list(void)
         if (!*id || !*name || !*time || !*hash) {
             continue;
         }
+        if (strlen(id) >= FILE_NAME_MAX || strlen(name) >= FILE_NAME_MAX ||
+            strlen(time) >= MAP_TIME_MAX || strlen(hash) >= MAP_HASH_MAX) {
+            continue;
+        }
 
         if (data.num_scenarios >= MAX_CCK_MAPS) {
             break;
         }
 
         cck_map_entry *entry = &data.scenarios[data.num_scenarios];
-        strncpy(entry->id, id, FILE_NAME_MAX);
-        entry->id[FILE_NAME_MAX - 1] = 0;
-        strncpy(entry->name, name, FILE_NAME_MAX);
-        entry->name[FILE_NAME_MAX - 1] = 0;
-        strncpy(entry->time, time, MAP_TIME_MAX);
-        entry->time[MAP_TIME_MAX - 1] = 0;
-        strncpy(entry->hash, hash, MAP_HASH_MAX);
-        entry->hash[MAP_HASH_MAX - 1] = 0;
+        copy_string(entry->id, FILE_NAME_MAX, id);
+        copy_string(entry->name, FILE_NAME_MAX, name);
+        copy_string(entry->time, MAP_TIME_MAX, time);
+        copy_string(entry->hash, MAP_HASH_MAX, hash);
 
-        strncpy(entry->filename, id, FILE_NAME_MAX);
-        entry->filename[FILE_NAME_MAX - 1] = 0;
+        copy_string(entry->filename, FILE_NAME_MAX, id);
         if (!file_has_extension(entry->filename, MAP_FILE_EXTENSION)) {
             file_append_extension(entry->filename, MAP_FILE_EXTENSION);
         }
@@ -300,7 +307,7 @@ static void draw_scenario_info(void)
         draw_metadata_line("TIME", entry->time, scenario_info_x + 10, 76, scenario_info_width);
         draw_metadata_line("HASH", entry->hash, scenario_info_x + 10, 92, scenario_info_width);
     } else if (data.list_version > 0) {
-        char version_text[32];
+        char version_text[VERSION_TEXT_MAX];
         snprintf(version_text, sizeof(version_text), "%d", data.list_version);
         draw_metadata_line("LIST VERSION", version_text, scenario_info_x + 10, 60, scenario_info_width);
     }
