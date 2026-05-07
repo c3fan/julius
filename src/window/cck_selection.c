@@ -24,6 +24,7 @@
 #include "window/city.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +33,10 @@
 #define MAX_CCK_MAPS 200
 #define MAP_TIME_MAX 64
 #define MAP_HASH_MAX 128
+#define LIST_VERSION_LINE_MAX 32
+#define MAP_LIST_LINE_MAX (4 * FILE_NAME_MAX + 8)
+#define METADATA_LINE_MAX (2 * FILE_NAME_MAX + 8)
+#define MAP_FILE_EXTENSION "map"
 
 typedef struct {
     char filename[FILE_NAME_MAX];
@@ -111,7 +116,7 @@ static int read_list_version(void)
         return 0;
     }
 
-    char line[64];
+    char line[LIST_VERSION_LINE_MAX];
     if (!fgets(line, sizeof(line), fp)) {
         file_close(fp);
         return 0;
@@ -125,7 +130,7 @@ static int read_list_version(void)
 
     char *end = 0;
     long version = strtol(start, &end, 10);
-    if (end == start || version < 0) {
+    if (end == start || version < 0 || version > INT_MAX) {
         return 0;
     }
     end = skip_ws(end);
@@ -157,7 +162,7 @@ static int load_metadata_list(void)
     }
 
     data.num_scenarios = 0;
-    char line[4 * FILE_NAME_MAX];
+    char line[MAP_LIST_LINE_MAX];
     while (fgets(line, sizeof(line), fp)) {
         char *start = skip_ws(line);
         trim_right(start);
@@ -212,8 +217,8 @@ static int load_metadata_list(void)
 
         strncpy(entry->filename, id, FILE_NAME_MAX);
         entry->filename[FILE_NAME_MAX - 1] = 0;
-        if (!file_has_extension(entry->filename, "map")) {
-            file_append_extension(entry->filename, "map");
+        if (!file_has_extension(entry->filename, MAP_FILE_EXTENSION)) {
+            file_append_extension(entry->filename, MAP_FILE_EXTENSION);
         }
 
         data.num_scenarios++;
@@ -229,7 +234,7 @@ static void init(void)
     data.list_version = read_list_version();
     data.has_metadata_list = load_metadata_list();
     if (!data.has_metadata_list) {
-        data.fallback_scenarios = dir_find_files_with_extension("map");
+        data.fallback_scenarios = dir_find_files_with_extension(MAP_FILE_EXTENSION);
         data.num_scenarios = data.fallback_scenarios->num_files;
         if (data.num_scenarios > MAX_CCK_MAPS) {
             data.num_scenarios = MAX_CCK_MAPS;
@@ -270,9 +275,9 @@ static void draw_scenario_list(void)
 
 static void draw_metadata_line(const char *label, const char *value, int x, int y, int width)
 {
-    char line[2 * FILE_NAME_MAX];
+    char line[METADATA_LINE_MAX];
     snprintf(line, sizeof(line), "%s: %s", label, value);
-    uint8_t displayable_line[2 * FILE_NAME_MAX];
+    uint8_t displayable_line[METADATA_LINE_MAX];
     encoding_from_utf8(line, displayable_line, sizeof(displayable_line));
     text_ellipsize(displayable_line, FONT_NORMAL_WHITE, width);
     text_draw(displayable_line, x, y, FONT_NORMAL_WHITE, 0);
