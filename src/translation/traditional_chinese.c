@@ -115,6 +115,10 @@ static translation_string all_strings[] = {
     {TR_CCK_METADATA_TIME_LABEL, "時間"},
     {TR_CCK_METADATA_HASH_LABEL, "校驗"},
     {TR_CCK_METADATA_LIST_VERSION_LABEL, "列表版本"},
+    {TR_CCK_NETWORK_DOWNLOAD, "下載"},
+    {TR_CCK_NETWORK_ERROR_TITLE, "下載錯誤"},
+    {TR_CCK_NETWORK_HASH_ERROR, "下載失敗：文件完整性校驗不通過。"},
+    {TR_CCK_NETWORK_FETCH_ERROR, "下載失敗：無法連接伺服器。"},
 };
 
 void translation_traditional_chinese(const translation_string **strings, int *num_strings)

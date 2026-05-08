@@ -115,6 +115,10 @@ static translation_string all_strings[] = {
     {TR_CCK_METADATA_TIME_LABEL, "Time"},
     {TR_CCK_METADATA_HASH_LABEL, "Hash"},
     {TR_CCK_METADATA_LIST_VERSION_LABEL, "List Version"},
+    {TR_CCK_NETWORK_DOWNLOAD, "Download"},
+    {TR_CCK_NETWORK_ERROR_TITLE, "Download Error"},
+    {TR_CCK_NETWORK_HASH_ERROR, "Download failed: file integrity check failed."},
+    {TR_CCK_NETWORK_FETCH_ERROR, "Download failed: unable to connect to server."},
 };
 
 void translation_english(const translation_string **strings, int *num_strings)
