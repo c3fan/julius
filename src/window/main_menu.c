@@ -14,6 +14,7 @@
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "sound/music.h"
+#include "translation/translation.h"
 #include "window/cck_selection.h"
 #include "window/config.h"
 #include "window/file_dialog.h"
@@ -76,7 +77,7 @@ static void draw_foreground(void)
 
     lang_text_draw_centered(30, 1, 192, 107, 256, FONT_NORMAL_GREEN);
     lang_text_draw_centered(30, 2, 192, 147, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(30, 3, 192, 187, 256, FONT_NORMAL_GREEN);
+    text_draw_centered(translation_for(TR_MAIN_MENU_NETWORK_CAMPAIGN), 192, 187, 256, FONT_NORMAL_GREEN, 0);
     lang_text_draw_centered(9, 8, 192, 227, 256, FONT_NORMAL_GREEN);
     lang_text_draw_centered(2, 0, 192, 267, 256, FONT_NORMAL_GREEN);
     lang_text_draw_centered(30, 5, 192, 307, 256, FONT_NORMAL_GREEN);
