@@ -297,6 +297,20 @@ static int load_julius_list(void)
         if (strlen(hash) != 64) {
             continue;  /* SHA-256 hex must be exactly 64 chars */
         }
+        /* Validate hex characters */
+        {
+            int valid = 1;
+            for (int ci = 0; hash[ci]; ci++) {
+                char c = hash[ci];
+                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+                    valid = 0;
+                    break;
+                }
+            }
+            if (!valid) {
+                continue;
+            }
+        }
 
         if (data.num_scenarios >= MAX_CCK_MAPS) {
             break;

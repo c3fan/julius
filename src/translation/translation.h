@@ -104,6 +104,7 @@ typedef enum {
     TR_WARNING_SCREENSHOT_SAVED,
     TR_FIX_KOREAN_BUILDING_DOCTORS_CLINIC,
     TR_MAIN_MENU_NETWORK_CAMPAIGN,
+    /* Metadata display labels (retained for potential future use) */
     TR_CCK_METADATA_ID_LABEL,
     TR_CCK_METADATA_TIME_LABEL,
     TR_CCK_METADATA_HASH_LABEL,
