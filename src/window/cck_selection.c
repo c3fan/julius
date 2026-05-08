@@ -27,6 +27,7 @@
 #include "window/city.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +51,10 @@
 #define MAP_LIST_FILE "maps.list"
 #define CCK_URL_FILE "cck.url"
 #define CCK_URL_ENV "JULIUS_CCK_BASE_URL"
+#ifdef HAVE_CURL
+#define CURL_CONNECT_TIMEOUT_MS 2000L
+#define CURL_DOWNLOAD_TIMEOUT_MS 4000L
+#endif
 
 typedef enum {
     CCK_SELECTION_CUSTOM = 0,
@@ -170,6 +175,22 @@ static int get_remote_base_url(char *buffer, int buffer_size)
     return buffer[0] != 0;
 }
 
+static int is_valid_remote_base_url(const char *url)
+{
+    if (!url || !*url) {
+        return 0;
+    }
+    if (strncmp(url, "http://", 7) != 0 && strncmp(url, "https://", 8) != 0) {
+        return 0;
+    }
+    for (const char *p = url; *p; p++) {
+        if ((unsigned char)*p < 32) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 #ifdef HAVE_CURL
 static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata)
 {
@@ -199,8 +220,8 @@ static int download_to_file(const char *url, const char *filename)
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 4000L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, CURL_CONNECT_TIMEOUT_MS);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, CURL_DOWNLOAD_TIMEOUT_MS);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
     CURLcode code = curl_easy_perform(curl);
@@ -226,6 +247,10 @@ static void refresh_remote_lists(void)
     if (!get_remote_base_url(base_url, sizeof(base_url))) {
         return;
     }
+    if (!is_valid_remote_base_url(base_url)) {
+        log_error("CCK: invalid remote base URL", base_url, 0);
+        return;
+    }
 
 #ifdef HAVE_CURL
     char version_url[2 * FILE_NAME_MAX];
@@ -233,10 +258,10 @@ static void refresh_remote_lists(void)
     snprintf(version_url, sizeof(version_url), "%s/%s", base_url, LIST_VERSION_FILE);
     snprintf(list_url, sizeof(list_url), "%s/%s", base_url, MAP_LIST_FILE);
     if (!download_to_file(version_url, LIST_VERSION_FILE)) {
-        log_info("CCK: remote list.version refresh skipped", 0, 0);
+        log_error("CCK: failed to download list.version", version_url, 0);
     }
     if (!download_to_file(list_url, MAP_LIST_FILE)) {
-        log_info("CCK: remote maps.list refresh skipped", 0, 0);
+        log_error("CCK: failed to download maps.list", list_url, 0);
     }
 #else
     log_info("CCK: remote refresh requested but curl support is unavailable", 0, 0);
@@ -263,8 +288,9 @@ static int read_list_version(void)
     }
 
     char *end = 0;
+    errno = 0;
     long version = strtol(start, &end, 10);
-    if (end == start || version < 0 || version > INT_MAX) {
+    if (end == start || errno == ERANGE || version < 0 || version > INT_MAX) {
         return 0;
     }
     end = skip_ws(end);
