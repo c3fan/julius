@@ -7,6 +7,7 @@ To build Julius, you need:
 - `SDL2`
 - `SDL2_mixer`
 - `libpng` (optional, a bundled copy will be used if not found)
+- `libcurl` is optional; Julius now falls back to bundled `curl` + `mbedTLS` sources when system `libcurl` is unavailable
 
 After downloading or cloning the sources, run the following commands:
 
