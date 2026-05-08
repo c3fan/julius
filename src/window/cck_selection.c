@@ -20,6 +20,7 @@
 #include "scenario/map.h"
 #include "scenario/property.h"
 #include "sound/music.h"
+#include "translation/translation.h"
 #include "widget/scenario_minimap.h"
 #include "window/city.h"
 
@@ -265,7 +266,7 @@ static void draw_scenario_list(void)
     for (int i = 0; i < MAX_SCENARIOS; i++) {
         int list_index = i + scrollbar.scroll_position;
         if (list_index >= data.num_scenarios) {
-            continue;
+            break;
         }
         font_t font = FONT_NORMAL_GREEN;
         if (data.focus_button_id == i + 1) {
@@ -303,13 +304,13 @@ static void draw_scenario_info(void)
         scenario_info_x, 25, scenario_info_width + 10, FONT_LARGE_BLACK, 0);
     if (data.has_metadata_list && data.selected_item >= 0 && data.selected_item < data.num_scenarios) {
         const cck_map_entry *entry = &data.scenarios[data.selected_item];
-        draw_metadata_line("ID", entry->id, scenario_info_x + 10, 60, scenario_info_width);
-        draw_metadata_line("TIME", entry->time, scenario_info_x + 10, 76, scenario_info_width);
-        draw_metadata_line("HASH", entry->hash, scenario_info_x + 10, 92, scenario_info_width);
+        draw_metadata_line((const char*)translation_for(TR_CCK_METADATA_ID_LABEL), entry->id, scenario_info_x + 10, 60, scenario_info_width);
+        draw_metadata_line((const char*)translation_for(TR_CCK_METADATA_TIME_LABEL), entry->time, scenario_info_x + 10, 76, scenario_info_width);
+        draw_metadata_line((const char*)translation_for(TR_CCK_METADATA_HASH_LABEL), entry->hash, scenario_info_x + 10, 92, scenario_info_width);
     } else if (data.list_version > 0) {
         char version_text[VERSION_TEXT_MAX];
         snprintf(version_text, sizeof(version_text), "%d", data.list_version);
-        draw_metadata_line("LIST VERSION", version_text, scenario_info_x + 10, 60, scenario_info_width);
+        draw_metadata_line((const char*)translation_for(TR_CCK_METADATA_LIST_VERSION_LABEL), version_text, scenario_info_x + 10, 60, scenario_info_width);
     }
     lang_text_draw_year(scenario_property_start_year(), scenario_criteria_x, 90, FONT_LARGE_BLACK);
 

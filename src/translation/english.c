@@ -111,6 +111,10 @@ static translation_string all_strings[] = {
     {TR_HOTKEY_DUPLICATE_MESSAGE, "This key combination is already assigned to the following action:"},
     {TR_WARNING_SCREENSHOT_SAVED, "Screenshot saved: "},
     {TR_MAIN_MENU_NETWORK_CAMPAIGN, "Network Campaign"},
+    {TR_CCK_METADATA_ID_LABEL, "ID"},
+    {TR_CCK_METADATA_TIME_LABEL, "Time"},
+    {TR_CCK_METADATA_HASH_LABEL, "Hash"},
+    {TR_CCK_METADATA_LIST_VERSION_LABEL, "List Version"},
 };
 
 void translation_english(const translation_string **strings, int *num_strings)

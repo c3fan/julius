@@ -111,6 +111,10 @@ static translation_string all_strings[] = {
     {TR_HOTKEY_DUPLICATE_MESSAGE, "該鍵位已設定為以下功能:"},
     {TR_WARNING_SCREENSHOT_SAVED, "截圖已保存: "}, // TODO: Google translate
     {TR_MAIN_MENU_NETWORK_CAMPAIGN, "網路戰役"},
+    {TR_CCK_METADATA_ID_LABEL, "編號"},
+    {TR_CCK_METADATA_TIME_LABEL, "時間"},
+    {TR_CCK_METADATA_HASH_LABEL, "校驗"},
+    {TR_CCK_METADATA_LIST_VERSION_LABEL, "列表版本"},
 };
 
 void translation_traditional_chinese(const translation_string **strings, int *num_strings)
