@@ -4,6 +4,7 @@
 #include "core/encoding.h"
 #include "core/file.h"
 #include "core/image_group.h"
+#include "core/log.h"
 #include "game/file.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -20,6 +21,7 @@
 #include "scenario/map.h"
 #include "scenario/property.h"
 #include "sound/music.h"
+#include "platform/file_manager.h"
 #include "translation/translation.h"
 #include "widget/scenario_minimap.h"
 #include "window/city.h"
@@ -29,6 +31,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef HAVE_CURL
+#include <curl/curl.h>
+#endif
 
 #define MAX_SCENARIOS 15
 // Keep this bounded to avoid excessive memory usage in static window state.
@@ -40,6 +46,15 @@
 #define METADATA_LINE_MAX (2 * FILE_NAME_MAX + 8)
 #define VERSION_TEXT_MAX 32
 #define MAP_FILE_EXTENSION "map"
+#define LIST_VERSION_FILE "list.version"
+#define MAP_LIST_FILE "maps.list"
+#define CCK_URL_FILE "cck.url"
+#define CCK_URL_ENV "JULIUS_CCK_BASE_URL"
+
+typedef enum {
+    CCK_SELECTION_CUSTOM = 0,
+    CCK_SELECTION_NETWORK = 1,
+} cck_selection_mode;
 
 typedef struct {
     char filename[FILE_NAME_MAX];
@@ -93,6 +108,7 @@ static struct {
     int num_scenarios;
 
     const dir_listing *fallback_scenarios;
+    cck_selection_mode mode;
 } data;
 
 static char *skip_ws(char *str)
@@ -117,13 +133,119 @@ static void copy_string(char *dst, int dst_size, const char *src)
     if (dst_size <= 0) {
         return;
     }
-    strncpy(dst, src, dst_size);
+    strncpy(dst, src, dst_size - 1);
     dst[dst_size - 1] = 0;
+}
+
+static int read_line_from_file(const char *filename, char *buffer, int buffer_size)
+{
+    FILE *fp = file_open(filename, "rb");
+    if (!fp) {
+        return 0;
+    }
+    if (!fgets(buffer, buffer_size, fp)) {
+        file_close(fp);
+        return 0;
+    }
+    file_close(fp);
+    char *start = skip_ws(buffer);
+    trim_right(start);
+    if (start != buffer) {
+        memmove(buffer, start, strlen(start) + 1);
+    }
+    return buffer[0] != 0;
+}
+
+static int get_remote_base_url(char *buffer, int buffer_size)
+{
+    if (read_line_from_file(CCK_URL_FILE, buffer, buffer_size)) {
+        return 1;
+    }
+    const char *env_url = getenv(CCK_URL_ENV);
+    if (!env_url || !*env_url) {
+        return 0;
+    }
+    copy_string(buffer, buffer_size, env_url);
+    trim_right(buffer);
+    return buffer[0] != 0;
+}
+
+#ifdef HAVE_CURL
+static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    FILE *fp = (FILE*)userdata;
+    return fwrite(ptr, size, nmemb, fp);
+}
+
+static int download_to_file(const char *url, const char *filename)
+{
+    static int curl_initialized = 0;
+    if (!curl_initialized) {
+        if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+            return 0;
+        }
+        curl_initialized = 1;
+    }
+    FILE *fp = file_open(filename, "wb");
+    if (!fp) {
+        return 0;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+        file_close(fp);
+        return 0;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 4000L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+    CURLcode code = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+    file_close(fp);
+    if (code != CURLE_OK || http_code != 200) {
+        platform_file_manager_remove_file(filename);
+        return 0;
+    }
+    return 1;
+}
+#endif
+
+static void refresh_remote_lists(void)
+{
+    if (data.mode != CCK_SELECTION_NETWORK) {
+        return;
+    }
+
+    char base_url[FILE_NAME_MAX];
+    if (!get_remote_base_url(base_url, sizeof(base_url))) {
+        return;
+    }
+
+#ifdef HAVE_CURL
+    char version_url[2 * FILE_NAME_MAX];
+    char list_url[2 * FILE_NAME_MAX];
+    snprintf(version_url, sizeof(version_url), "%s/%s", base_url, LIST_VERSION_FILE);
+    snprintf(list_url, sizeof(list_url), "%s/%s", base_url, MAP_LIST_FILE);
+    if (!download_to_file(version_url, LIST_VERSION_FILE)) {
+        log_info("CCK: remote list.version refresh skipped", 0, 0);
+    }
+    if (!download_to_file(list_url, MAP_LIST_FILE)) {
+        log_info("CCK: remote maps.list refresh skipped", 0, 0);
+    }
+#else
+    log_info("CCK: remote refresh requested but curl support is unavailable", 0, 0);
+#endif
 }
 
 static int read_list_version(void)
 {
-    FILE *fp = file_open("list.version", "rb");
+    FILE *fp = file_open(LIST_VERSION_FILE, "rb");
     if (!fp) {
         return 0;
     }
@@ -165,7 +287,7 @@ static void set_map_entry_from_filename(int index, const char *filename)
 
 static int load_metadata_list(void)
 {
-    FILE *fp = file_open("maps.list", "rb");
+    FILE *fp = file_open(MAP_LIST_FILE, "rb");
     if (!fp) {
         return 0;
     }
@@ -236,21 +358,51 @@ static int load_metadata_list(void)
     return data.num_scenarios > 0;
 }
 
+static int has_scenario_filename(const char *filename)
+{
+    for (int i = 0; i < data.num_scenarios; i++) {
+        if (platform_file_manager_compare_filename(data.scenarios[i].filename, filename) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void append_local_scenarios(void)
+{
+    data.fallback_scenarios = dir_find_files_with_extension(MAP_FILE_EXTENSION);
+    int num_files = data.fallback_scenarios->num_files;
+    if (num_files > MAX_CCK_MAPS) {
+        num_files = MAX_CCK_MAPS;
+    }
+    for (int i = 0; i < num_files; i++) {
+        const char *filename = data.fallback_scenarios->files[i];
+        if (has_scenario_filename(filename)) {
+            continue;
+        }
+        if (data.num_scenarios >= MAX_CCK_MAPS) {
+            break;
+        }
+        set_map_entry_from_filename(data.num_scenarios, filename);
+        data.num_scenarios++;
+    }
+}
+
 static void init(void)
 {
     scenario_set_custom(2);
-    data.list_version = read_list_version();
-    data.has_metadata_list = load_metadata_list();
-    if (!data.has_metadata_list) {
-        data.fallback_scenarios = dir_find_files_with_extension(MAP_FILE_EXTENSION);
-        data.num_scenarios = data.fallback_scenarios->num_files;
-        if (data.num_scenarios > MAX_CCK_MAPS) {
-            data.num_scenarios = MAX_CCK_MAPS;
-        }
-        for (int i = 0; i < data.num_scenarios; i++) {
-            set_map_entry_from_filename(i, data.fallback_scenarios->files[i]);
-        }
+    data.num_scenarios = 0;
+    data.list_version = 0;
+    data.has_metadata_list = 0;
+
+    if (data.mode == CCK_SELECTION_NETWORK) {
+        refresh_remote_lists();
+        data.list_version = read_list_version();
+        data.has_metadata_list = load_metadata_list();
     }
+
+    append_local_scenarios();
+
     data.focus_button_id = 0;
     data.focus_toggle_button = 0;
     data.show_minimap = 0;
@@ -490,6 +642,20 @@ static void on_scroll(void)
 
 void window_cck_selection_show(void)
 {
+    data.mode = CCK_SELECTION_CUSTOM;
+    window_type window = {
+        WINDOW_CCK_SELECTION,
+        draw_background,
+        draw_foreground,
+        handle_input
+    };
+    init();
+    window_show(&window);
+}
+
+void window_cck_selection_show_network(void)
+{
+    data.mode = CCK_SELECTION_NETWORK;
     window_type window = {
         WINDOW_CCK_SELECTION,
         draw_background,
